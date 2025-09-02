@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Isometric Multiplayer Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.1/peerjs.min.js"></script>
+  <style>
+    /* === FONT IMPORT === */
+    @font-face {
+      font-family: 'BoldPixels';
+      src: url('assets/fonts/BoldPixels1.4.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    * {
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      font-family: 'BoldPixels', sans-serif;
+    }
+
+    body {
+      background: url('assets/sky.png');
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #mainMenu {
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%;
+      background: url('assets/sky.png');
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center;
+      z-index: 1000; 
+      transition: opacity 0.5s;
+    }
+
+    #mainMenu h1 {
+      color: white; 
+      font-size: 4em; 
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px rgba(255,255,255,0.5);
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .menuButton {
+      background: rgba(255,255,255,0.2);
+      border: 2px solid white; 
+      color: white; 
+      padding: 15px 40px;
+      font-size: 1.2em; 
+      margin: 10px; 
+      cursor: pointer; 
+      transition: all 0.3s;
+      border-radius: 50px; 
+      backdrop-filter: blur(10px);
+      font-family: 'BoldPixels', sans-serif;
+    }
+
+    .menuButton:hover {
+      background: rgba(255,255,255,0.3); 
+      transform: scale(1.05); 
+      box-shadow: 0 5px 20px rgba(255,255,255,0.3);
+    }
+
+    #multiplayerMenu {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.9);
+      border: 2px solid white;
+      border-radius: 20px;
+      padding: 30px;
+      color: white;
+      display: none;
+      z-index: 2000;
+      backdrop-filter: blur(10px);
+      min-width: 400px;
+    }
+
+    #multiplayerMenu h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: white;
+    }
+
+    .menuInput {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 10px;
+      color: white;
+      font-size: 1em;
+      font-family: 'BoldPixels', sans-serif;
+    }
+
+    .menuInput::placeholder {
+      color: rgba(255,255,255,0.5);
+    }
+
+    .menuRow {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .menuRow button {
+      flex: 1;
+    }
+
+    #connectionStatus {
+      text-align: center;
+      margin: 15px 0;
+      padding: 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #roomCode {
+      background: rgba(100,255,100,0.2);
+      border: 1px solid rgba(100,255,100,0.5);
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      margin: 10px 0;
+      font-size: 1.5em;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    #roomCode:hover {
+      background: rgba(100,255,100,0.3);
+    }
+
+    #gameContainer { 
+      display: none; 
+      width: 100%; 
+      height: 100vh; 
+      position: relative; 
+    }
+    
+    #gameCanvas { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      cursor: grab; 
+      background: url('assets/sky.png');
+    }
+    
+    #gameCanvas:active { 
+      cursor: grabbing; 
+    }
+
+    #controlsInfo {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+      font-family: 'BoldPixels', sans-serif;
+      z-index: 100;
+    }
+
+    #controlsInfo h3 {
+      margin-bottom: 10px;
+    }
+
+    #controlsInfo p {
+      margin: 5px 0;
+      font-size: 0.9em;
+    }
+
+    #playerInfo {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+      font-family: 'BoldPixels', sans-serif;
+      z-index: 100;
+    }
+
+    #playerInfo p {
+      margin: 5px 0;
+    }
+
+    #playersList {
+      position: fixed;
+      top: 180px;
+      right: 20px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+      font-family: 'BoldPixels', sans-serif;
+      z-index: 100;
+      min-width: 150px;
+    }
+
+    #playersList h3 {
+      margin-bottom: 10px;
+      color: #6b9fff;
+    }
+
+    #playersList .playerItem {
+      margin: 5px 0;
+      padding: 5px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 5px;
+    }
+
+    #chatInput {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 25px;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      z-index: 200;
+      transition: all 0.3s;
+    }
+
+    #chatInput.hidden {
+      transform: translateX(-50%) translateY(100px);
+      opacity: 0;
+    }
+
+    #chatInput input {
+      background: none;
+      border: none;
+      color: white;
+      font-family: 'BoldPixels', sans-serif;
+      font-size: 1em;
+      outline: none;
+      width: 300px;
+      margin-right: 10px;
+    }
+
+    #chatInput input::placeholder {
+      color: rgba(255,255,255,0.5);
+    }
+
+    #chatInput button {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.4);
+      color: white;
+      padding: 5px 15px;
+      border-radius: 15px;
+      cursor: pointer;
+      font-family: 'BoldPixels', sans-serif;
+      transition: all 0.3s;
+    }
+
+    #chatInput button:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    #chatHelp {
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 0.9em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      z-index: 150;
+    }
+
+    .closeButton {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255,0,0,0.3);
+      border: 1px solid rgba(255,0,0,0.5);
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .closeButton:hover {
+      background: rgba(255,0,0,0.5);
+    }
+
+    #errorMessage {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255,0,0,0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      display: none;
+      z-index: 3000;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .copyButton {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.4);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'BoldPixels', sans-serif;
+      font-size: 0.8em;
+      margin-top: 5px;
+      transition: all 0.3s;
+    }
+
+    .copyButton:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    @keyframes chatBubblePop {
+      0% { transform: scale(0) translateY(0); opacity: 0; }
+      50% { transform: scale(1.1) translateY(-5px); opacity: 1; }
+      100% { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    @keyframes chatBubbleFade {
+      0% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-10px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="mainMenu">
+    <h1>🎮 Isometric World</h1>
+    <input type="text" id="nicknameInput" class="menuInput" placeholder="Enter your nickname" style="width: 300px; margin-bottom: 20px;">
+    <button class="menuButton" id="multiplayerBtn">Play Multiplayer (Internet)</button>
+    <button class="menuButton" id="soloBtn">Play Solo</button>
+    <button class="menuButton" id="controlsBtn">Controls</button>
+  </div>
+
+  <div id="multiplayerMenu">
+    <button class="closeButton" id="closeMultiplayerBtn">✕</button>
+    <h2>Internet Multiplayer</h2>
+    
+    <div id="connectionStatus">Choose an option below</div>
+    
+    <div class="menuRow">
+      <button class="menuButton" id="createRoomBtn">Create Room</button>
+      <button class="menuButton" id="joinRoomBtn">Join Room</button>
+    </div>
+    
+    <div id="roomCodeDisplay" style="display:none;">
+      <p style="text-align:center; margin-top:10px;">Share this code with friends anywhere:</p>
+      <div id="roomCode" onclick="copyRoomCode()"></div>
+      <button class="copyButton" onclick="copyRoomCode()">📋 Copy Room Code</button>
+      <p style="text-align:center; font-size:0.9em; opacity:0.7;">Waiting for players...</p>
+      <button class="menuButton" id="startGameBtn" style="width:100%; margin-top:10px;">Start Game</button>
+    </div>
+    
+    <div id="joinRoomSection" style="display:none;">
+      <input type="text" id="roomCodeInput" class="menuInput" placeholder="Enter room code" maxlength="20">
+      <button class="menuButton" id="confirmJoinBtn" style="width:100%;">Join</button>
+    </div>
+  </div>
+
+  <div id="errorMessage"></div>
+
+  <div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="controlsInfo">
+      <h3>Controls</h3>
+      <p>⬆️ W / Arrow Up - Move Up</p>
+      <p>⬇️ S / Arrow Down - Move Down</p>
+      <p>⬅️ A / Arrow Left - Move Left</p>
+      <p>➡️ D / Arrow Right - Move Right</p>
+      <p>🖱️ Right Click - Pan Camera</p>
+      <p>📍 Scroll - Zoom</p>
+      <p>💬 Enter - Open Chat</p>
+      <p>❌ Esc - Close Chat</p>
+    </div>
+
+    <div id="playerInfo">
+      <h3><span id="playerName">Player</span></h3>
+      <p>Position: <span id="playerPos">X: 25, Y: 25</span></p>
+      <p>Room: <span id="currentRoom">Solo</span></p>
+      <p>State: <span id="playerState">Idle</span></p>
+    </div>
+
+    <div id="playersList">
+      <h3>Players Online</h3>
+      <div id="playersListContent"></div>
+    </div>
+
+    <div id="chatHelp">Press Enter to chat</div>
+    
+    <div id="chatInput" class="hidden">
+      <input type="text" id="messageInput" placeholder="Type a message..." maxlength="50">
+      <button id="sendMessageBtn">Send</button>
+    </div>
+  </div>
+
+  <script>
+    // Get canvas and context
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // === SPRITES ===
+    const images = {};
+    const spriteList = [
+      "grass","house","shop","office","road","roadrotated","roadrotation3","roadrotation4",
+      "tree","money","population","menu","vertmenurectangle","happy","meh","bad","sky",
+      "menurectangle","residential","commercial","industrial","service","nature","misc",
+      "mall","factory","powerplant","hospital","school","police","park","landmark",
+      "idle", "run" // Character sprites
+    ];
+
+    function loadSprites() {
+      let loaded = 0;
+      return new Promise(resolve => {
+        spriteList.forEach(name => {
+          const img = new Image();
+          img.src = `assets/${name}.png`;
+          img.onload = () => {
+            loaded++;
+            if (loaded === spriteList.length) resolve();
+          };
+          img.onerror = () => {
+            // If sprite doesn't exist, create placeholder
+            console.warn(`Sprite not found: ${name}.png`);
+            loaded++;
+            if (loaded === spriteList.length) resolve();
+          };
+          images[name] = img;
+        });
+      });
+    }
+
+    // Multiplayer state
+    const multiplayerState = {
+      nickname: '',
+      roomCode: '',
+      isHost: false,
+      isConnected: false,
+      peer: null,
+      connections: new Map(),
+      localPeerId: '',
+      players: new Map(),
+      connectionAttempts: 0,
+      maxRetries: 3
+    };
+
+    // Game state
+    const gameState = {
+      gridWidth: 50,
+      gridHeight: 50,
+      tileSize: 64,
+      cameraX: 0,
+      cameraY: -500,
+      zoom: 1,
+      isDragging: false,
+      lastMouseX: 0,
+      lastMouseY: 0,
+      player: {
+        x: 25,
+        y: 25,
+        speed: 0.05,
+        isMoving: false,
+        direction: 'down',
+        moveProgress: 0,
+        targetX: 25,
+        targetY: 25,
+        animationFrame: 0,
+        animationTimer: 0,
+        chatMessage: '',
+        chatTimer: 0,
+        chatOpacity: 1,
+        color: `hsl(${Math.random() * 360}, 70%, 60%)`
+      },
+      keys: {
+        w: false,
+        a: false,
+        s: false,
+        d: false,
+        ArrowUp: false,
+        ArrowDown: false,
+        ArrowLeft: false,
+        ArrowRight: false
+      },
+      chatOpen: false,
+      deltaTime: 0,
+      lastTime: 0,
+      gameStarted: false
+    };
+
+    // Button event listeners
+    document.getElementById('multiplayerBtn').addEventListener('click', openMultiplayerMenu);
+    document.getElementById('soloBtn').addEventListener('click', startSoloGame);
+    document.getElementById('controlsBtn').addEventListener('click', showControls);
+    document.getElementById('closeMultiplayerBtn').addEventListener('click', closeMultiplayerMenu);
+    document.getElementById('createRoomBtn').addEventListener('click', createRoom);
+    document.getElementById('joinRoomBtn').addEventListener('click', showJoinRoom);
+    document.getElementById('confirmJoinBtn').addEventListener('click', joinRoom);
+    document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
+    document.getElementById('startGameBtn').addEventListener('click', hostStartGame);
+
+    // Error handling
+    function showError(message) {
+      const errorDiv = document.getElementById('errorMessage');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+
+    // Copy room code to clipboard
+    function copyRoomCode() {
+      const roomCode = document.getElementById('roomCode').textContent;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(roomCode).then(() => {
+          showTemporaryMessage('Room code copied to clipboard!');
+        }).catch(() => {
+          fallbackCopyTextToClipboard(roomCode);
+        });
+      } else {
+        fallbackCopyTextToClipboard(roomCode);
+      }
+    }
+
+    function fallbackCopyTextToClipboard(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showTemporaryMessage('Room code copied!');
+      } catch (err) {
+        showError('Failed to copy room code');
+      }
+      document.body.removeChild(textArea);
+    }
+
+    function showTemporaryMessage(message) {
+      const temp = document.createElement('div');
+      temp.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,255,0,0.9);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 10px;
+        z-index: 4000;
+        font-family: BoldPixels, sans-serif;
+      `;
+      temp.textContent = message;
+      document.body.appendChild(temp);
+      setTimeout(() => {
+        document.body.removeChild(temp);
+      }, 2000);
+    }
+
+    // Menu Functions
+    function openMultiplayerMenu() {
+      const nickname = document.getElementById('nicknameInput').value.trim();
+      if (!nickname) {
+        alert('Please enter a nickname first!');
+        return;
+      }
+      multiplayerState.nickname = nickname;
+      document.getElementById('multiplayerMenu').style.display = 'block';
+    }
+
+    function closeMultiplayerMenu() {
+      document.getElementById('multiplayerMenu').style.display = 'none';
+      if (multiplayerState.peer) {
+        multiplayerState.peer.destroy();
+        multiplayerState.peer = null;
+      }
+      resetMultiplayerUI();
+    }
+
+    function resetMultiplayerUI() {
+      document.getElementById('roomCodeDisplay').style.display = 'none';
+      document.getElementById('joinRoomSection').style.display = 'none';
+      document.getElementById('connectionStatus').textContent = 'Choose an option below';
+      multiplayerState.connectionAttempts = 0;
+    }
+
+    function createRoom() {
+      multiplayerState.roomCode = generateRoomCode();
+      multiplayerState.isHost = true;
+      
+      document.getElementById('roomCodeDisplay').style.display = 'block';
+      document.getElementById('roomCode').textContent = multiplayerState.roomCode;
+      document.getElementById('connectionStatus').textContent = 'Creating room...';
+      
+      startHost();
+    }
+
+    function showJoinRoom() {
+      document.getElementById('joinRoomSection').style.display = 'block';
+      document.getElementById('connectionStatus').textContent = 'Enter room code to join';
+    }
+
+    function joinRoom() {
+      const code = document.getElementById('roomCodeInput').value.trim();
+      if (!code) {
+        alert('Please enter a room code!');
+        return;
+      }
+      
+      multiplayerState.roomCode = code;
+      multiplayerState.isHost = false;
+      multiplayerState.connectionAttempts = 0;
+      document.getElementById('connectionStatus').textContent = 'Connecting to room...';
+      
+      connectToHost();
+    }
+
+    function generateRoomCode() {
+      // Generate a more user-friendly room code
+      const adjectives = ['Blue', 'Red', 'Green', 'Fast', 'Cool', 'Epic', 'Wild', 'Bold'];
+      const nouns = ['Dragon', 'Tiger', 'Eagle', 'Wolf', 'Bear', 'Fox', 'Lion', 'Shark'];
+      const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+      const noun = nouns[Math.floor(Math.random() * nouns.length)];
+      const num = Math.floor(Math.random() * 100);
+      return `${adj}${noun}${num}`;
+    }
+
+    function getPeerConfig() {
+  return {
+    host: '0.peerjs.com',
+    port: 443,
+    path: '/',
+    secure: true,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        {
+          urls: 'turn:relay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ]
+    },
+    debug: 1
+  };
+}
+
+
+
+    function startHost() {
+      try {
+        multiplayerState.peer = new Peer(multiplayerState.roomCode, getPeerConfig());
+
+        multiplayerState.peer.on('open', (id) => {
+          multiplayerState.localPeerId = id;
+          multiplayerState.isConnected = true;
+          document.getElementById('connectionStatus').innerHTML = 
+            'Room created! Share the code with friends:<br><strong>Works across the internet!</strong>';
+          console.log('Host peer ID: ' + id);
+        });
+
+        multiplayerState.peer.on('connection', (conn) => {
+          console.log('Player connecting...', conn.peer);
+          setupConnection(conn);
+        });
+
+        multiplayerState.peer.on('error', (err) => {
+          console.error('Host peer error:', err);
+          handlePeerError(err, 'host');
+        });
+
+        multiplayerState.peer.on('disconnected', () => {
+          console.log('Host peer disconnected, attempting reconnect...');
+          multiplayerState.peer.reconnect();
+        });
+
+      } catch (error) {
+        console.error('Failed to create host:', error);
+        showError('Failed to create room. Please try again.');
+      }
+    }
+
+    function connectToHost() {
+      try {
+        // Create unique client ID to avoid conflicts
+        const clientId = 'client-' + Math.random().toString(36).substr(2, 9);
+        multiplayerState.peer = new Peer(clientId, getPeerConfig());
+
+        multiplayerState.peer.on('open', (id) => {
+          multiplayerState.localPeerId = id;
+          console.log('Client peer ID: ' + id);
+          
+          document.getElementById('connectionStatus').textContent = 'Connecting to host...';
+          
+          // Add connection timeout
+          const connectionTimeout = setTimeout(() => {
+            showError('Connection timeout. Please check the room code and try again.');
+            document.getElementById('connectionStatus').textContent = 'Connection failed';
+          }, 15000);
+          
+          // Connect to host
+          const conn = multiplayerState.peer.connect(multiplayerState.roomCode, {
+            reliable: true,
+            serialization: 'json'
+          });
+          
+          conn.on('open', () => {
+            clearTimeout(connectionTimeout);
+          });
+          
+          setupConnection(conn, true);
+        });
+
+        multiplayerState.peer.on('error', (err) => {
+          console.error('Client peer error:', err);
+          handlePeerError(err, 'client');
+        });
+
+        multiplayerState.peer.on('disconnected', () => {
+          console.log('Client peer disconnected, attempting reconnect...');
+          if (multiplayerState.peer && !multiplayerState.peer.destroyed) {
+            multiplayerState.peer.reconnect();
+          }
+        });
+
+      } catch (error) {
+        console.error('Failed to connect to host:', error);
+        showError('Failed to connect. Please check the room code.');
+      }
+    }
+
+    function handlePeerError(err, type) {
+      console.error(`${type} error:`, err);
+      
+      let errorMessage = 'Connection error';
+      
+      switch(err.type) {
+        case 'peer-unavailable':
+          errorMessage = 'Room not found. Please check the room code.';
+          break;
+        case 'network':
+          errorMessage = 'Network error. Please check your internet connection.';
+          break;
+        case 'server-error':
+          errorMessage = 'Server error. Please try again in a moment.';
+          break;
+        case 'socket-error':
+          errorMessage = 'Connection failed. Trying to reconnect...';
+          // Attempt reconnection for socket errors
+          if (multiplayerState.connectionAttempts < multiplayerState.maxRetries) {
+            multiplayerState.connectionAttempts++;
+            setTimeout(() => {
+              if (type === 'host') {
+                startHost();
+              } else {
+                connectToHost();
+              }
+            }, 2000);
+            return;
+          }
+          break;
+        default:
+          errorMessage = `${err.type}: ${err.message || 'Unknown error'}`;
+      }
+      
+      showError(errorMessage);
+      document.getElementById('connectionStatus').textContent = errorMessage;
+    }
+
+    function setupConnection(conn, isInitiator = false) {
+      let connectionTimeout;
+      
+      conn.on('open', () => {
+        console.log('Connection opened with: ' + conn.peer);
+        multiplayerState.connections.set(conn.peer, conn);
+        
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+        }
+        
+        // Send initial player data
+        conn.send({
+          type: 'playerJoin',
+          data: {
+            id: multiplayerState.localPeerId,
+            nickname: multiplayerState.nickname,
+            x: gameState.player.x,
+            y: gameState.player.y,
+            color: gameState.player.color
+          }
+        });
+
+        if (isInitiator) {
+          multiplayerState.isConnected = true;
+          document.getElementById('connectionStatus').innerHTML = 
+            'Connected! <span style="color: #4CAF50;">✓</span>';
+        } else {
+          document.getElementById('connectionStatus').innerHTML = 
+            `Player "${multiplayerState.players.get(conn.peer)?.nickname || 'Unknown'}" joined!`;
+        }
+        
+        updatePlayersList();
+      });
+
+      conn.on('data', (data) => {
+        handleMultiplayerMessage(data, conn);
+      });
+
+      conn.on('close', () => {
+        console.log('Connection closed with: ' + conn.peer);
+        multiplayerState.connections.delete(conn.peer);
+        const playerName = multiplayerState.players.get(conn.peer)?.nickname || 'Unknown';
+        multiplayerState.players.delete(conn.peer);
+        updatePlayersList();
+        
+        if (gameState.gameStarted) {
+          showTemporaryMessage(`${playerName} left the game`);
+        }
+      });
+
+      conn.on('error', (err) => {
+        console.error('Connection error with ' + conn.peer + ':', err);
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+        }
+      });
+      
+      // Set connection timeout
+      if (isInitiator) {
+        connectionTimeout = setTimeout(() => {
+          if (!conn.open) {
+            showError('Failed to connect to room. Please check the room code.');
+            document.getElementById('connectionStatus').textContent = 'Connection failed';
+          }
+        }, 10000);
+      }
+    }
+
+    function handleMultiplayerMessage(data, conn) {
+      switch(data.type) {
+        case 'playerJoin':
+          multiplayerState.players.set(conn.peer, data.data);
+          updatePlayersList();
+          
+          // If host, send current player list to new player
+          if (multiplayerState.isHost) {
+            const playerList = Array.from(multiplayerState.players.entries()).map(([id, player]) => ({
+              id: id,
+              ...player
+            }));
+            // Also include host player
+            playerList.push({
+              id: multiplayerState.localPeerId,
+              nickname: multiplayerState.nickname,
+              x: gameState.player.x,
+              y: gameState.player.y,
+              color: gameState.player.color
+            });
+            
+            conn.send({
+              type: 'playerList',
+              data: playerList
+            });
+          }
+          
+          if (gameState.gameStarted) {
+            showTemporaryMessage(`${data.data.nickname} joined the game!`);
+          }
+          break;
+          
+        case 'playerList':
+          // Update players list from host
+          data.data.forEach(player => {
+            if (player.id !== multiplayerState.localPeerId) {
+              multiplayerState.players.set(player.id, player);
+            }
+          });
+          updatePlayersList();
+          break;
+          
+        case 'playerUpdate':
+          // Update player position and state
+          if (multiplayerState.players.has(conn.peer)) {
+            const player = multiplayerState.players.get(conn.peer);
+            Object.assign(player, data.data);
+          }
+          break;
+          
+        case 'chatMessage':
+          // Update player chat message
+          if (multiplayerState.players.has(conn.peer)) {
+            const player = multiplayerState.players.get(conn.peer);
+            player.chatMessage = data.message;
+            player.chatTimer = 3000;
+            player.chatOpacity = 1;
+          }
+          break;
+          
+        case 'gameStart':
+          // Start game when host starts it
+          if (!multiplayerState.isHost) {
+            startMultiplayerGame();
+          }
+          break;
+          
+        case 'ping':
+          // Respond to ping with pong to keep connection alive
+          conn.send({ type: 'pong' });
+          break;
+          
+        case 'pong':
+          // Connection is alive
+          break;
+      }
+    }
+
+    function broadcastToAll(message) {
+      multiplayerState.connections.forEach(conn => {
+        if (conn.open) {
+          try {
+            conn.send(message);
+          } catch (error) {
+            console.error('Failed to send message to', conn.peer, error);
+          }
+        }
+      });
+    }
+
+    // Keep connections alive with periodic pings
+    function startConnectionHeartbeat() {
+      setInterval(() => {
+        if (multiplayerState.isConnected && multiplayerState.connections.size > 0) {
+          broadcastToAll({ type: 'ping' });
+        }
+      }, 30000); // Ping every 30 seconds
+    }
+
+    function hostStartGame() {
+      if (multiplayerState.isHost && multiplayerState.connections.size > 0) {
+        broadcastToAll({ type: 'gameStart' });
+        startMultiplayerGame();
+      } else if (multiplayerState.isHost && multiplayerState.connections.size === 0) {
+        // Start solo if no players connected
+        startMultiplayerGame();
+      }
+    }
+
+    async function startMultiplayerGame() {
+      await loadSprites();
+      document.getElementById('multiplayerMenu').style.display = 'none';
+      gameState.gameStarted = true;
+      startGame();
+      document.getElementById('currentRoom').textContent = multiplayerState.roomCode;
+      
+      // Start heartbeat to keep connections alive
+      startConnectionHeartbeat();
+      
+      showTemporaryMessage('Game started!');
+    }
+
+    function updatePlayersList() {
+      const content = document.getElementById('playersListContent');
+      content.innerHTML = '';
+      
+      // Show local player
+      const localDiv = document.createElement('div');
+      localDiv.className = 'playerItem';
+      localDiv.innerHTML = `<strong>${multiplayerState.nickname || 'You'}</strong> ${multiplayerState.isHost ? '(Host)' : '(You)'}`;
+      localDiv.style.background = 'rgba(100, 255, 100, 0.2)';
+      content.appendChild(localDiv);
+      
+      // Show remote players
+      multiplayerState.players.forEach((player, id) => {
+        const div = document.createElement('div');
+        div.className = 'playerItem';
+        div.textContent = player.nickname;
+        div.style.background = 'rgba(100, 150, 255, 0.2)';
+        content.appendChild(div);
+      });
+      
+      // Update connection count
+      const totalPlayers = 1 + multiplayerState.players.size;
+      if (gameState.gameStarted) {
+        document.getElementById('playersList').querySelector('h3').textContent = `Players (${totalPlayers})`;
+      }
+    }
+
+    async function startSoloGame() {
+      const nickname = document.getElementById('nicknameInput').value.trim();
+      if (!nickname) {
+        alert('Please enter a nickname first!');
+        return;
+      }
+      multiplayerState.nickname = nickname;
+      await loadSprites();
+      startGame();
+    }
+
+    function showControls() {
+      alert("Controls:\n\n" +
+        "MOVEMENT:\n" +
+        "• W / Arrow Up - Move Up\n" +
+        "• S / Arrow Down - Move Down\n" +
+        "• A / Arrow Left - Move Left\n" +
+        "• D / Arrow Right - Move Right\n\n" +
+        "CAMERA:\n" +
+        "• Right Click + Drag - Pan camera\n" +
+        "• Scroll - Zoom in/out\n\n" +
+        "CHAT:\n" +
+        "• Enter - Open/Send chat\n" +
+        "• Esc - Close chat\n\n" +
+        "MULTIPLAYER:\n" +
+        "• Create or join rooms to play with friends anywhere!\n" +
+        "• Share the room code with others around the world");
+    }
+
+    function startGame() {
+      document.getElementById("mainMenu").style.display = "none";
+      document.getElementById("gameContainer").style.display = "block";
+      initGame();
+    }
+
+    // Initialize game
+    function initGame() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      // Random starting position
+      gameState.player.x = 20 + Math.random() * 10;
+      gameState.player.y = 20 + Math.random() * 10;
+
+      // Center camera on player
+      const playerIso = toIsometric(gameState.player.x, gameState.player.y);
+      gameState.cameraX = -playerIso.x;
+      gameState.cameraY = -playerIso.y;
+
+      // Set player name
+      document.getElementById('playerName').textContent = multiplayerState.nickname || 'Player';
+
+      // Mouse events
+      canvas.addEventListener("mousedown", handleMouseDown);
+      canvas.addEventListener("mousemove", handleMouseMove);
+      canvas.addEventListener("mouseup", handleMouseUp);
+      canvas.addEventListener("wheel", handleWheel);
+      canvas.addEventListener("contextmenu", e => e.preventDefault());
+      
+      // Keyboard events
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("keyup", handleKeyUp);
+
+      // Message input enter key
+      document.getElementById('messageInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      });
+
+      // Start update interval for multiplayer
+      if (multiplayerState.isConnected) {
+        setInterval(() => {
+          broadcastPlayerUpdate();
+        }, 50); // Update 20 times per second
+      }
+
+      gameState.lastTime = performance.now();
+      gameLoop();
+    }
+
+    function broadcastPlayerUpdate() {
+      if (multiplayerState.isConnected && multiplayerState.connections.size > 0) {
+        const update = {
+          type: 'playerUpdate',
+          data: {
+            x: gameState.player.x,
+            y: gameState.player.y,
+            isMoving: gameState.player.isMoving,
+            direction: gameState.player.direction,
+            animationFrame: gameState.player.animationFrame
+          }
+        };
+        broadcastToAll(update);
+      }
+    }
+
+    // Keyboard handlers
+    function handleKeyDown(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        toggleChat();
+        return;
+      }
+      
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeChat();
+        return;
+      }
+
+      if (gameState.chatOpen) return;
+
+      if (gameState.keys.hasOwnProperty(e.key)) {
+        gameState.keys[e.key] = true;
+        e.preventDefault();
+      }
+    }
+
+    function handleKeyUp(e) {
+      if (gameState.keys.hasOwnProperty(e.key)) {
+        gameState.keys[e.key] = false;
+        e.preventDefault();
+      }
+    }
+
+    // Chat system
+    function toggleChat() {
+      gameState.chatOpen = !gameState.chatOpen;
+      const chatInput = document.getElementById('chatInput');
+      const messageInput = document.getElementById('messageInput');
+      const chatHelp = document.getElementById('chatHelp');
+      
+      if (gameState.chatOpen) {
+        chatInput.classList.remove('hidden');
+        messageInput.focus();
+        chatHelp.style.display = 'none';
+      } else {
+        chatInput.classList.add('hidden');
+        messageInput.value = '';
+        chatHelp.style.display = 'block';
+      }
+    }
+
+    function closeChat() {
+      gameState.chatOpen = false;
+      const chatInput = document.getElementById('chatInput');
+      const chatHelp = document.getElementById('chatHelp');
+      chatInput.classList.add('hidden');
+      document.getElementById('messageInput').value = '';
+      chatHelp.style.display = 'block';
+    }
+
+    function sendMessage() {
+      const messageInput = document.getElementById('messageInput');
+      const message = messageInput.value.trim();
+      
+      if (message) {
+        gameState.player.chatMessage = message;
+        gameState.player.chatTimer = 3000;
+        gameState.player.chatOpacity = 1;
+        
+        // Broadcast chat message to other players
+        if (multiplayerState.isConnected && multiplayerState.connections.size > 0) {
+          broadcastToAll({
+            type: 'chatMessage',
+            message: message
+          });
+        }
+        
+        messageInput.value = '';
+        closeChat();
+      }
+    }
+
+    // Player movement
+    function updatePlayer() {
+      let dx = 0;
+      let dy = 0;
+
+      if (gameState.chatOpen) {
+        gameState.player.isMoving = false;
+        return;
+      }
+
+      // Calculate movement direction
+      if (gameState.keys.w || gameState.keys.ArrowUp) dy = -1;
+      if (gameState.keys.s || gameState.keys.ArrowDown) dy = 1;
+      if (gameState.keys.a || gameState.keys.ArrowLeft) dx = -1;
+      if (gameState.keys.d || gameState.keys.ArrowRight) dx = 1;
+
+      // Update player position
+      if (dx !== 0 || dy !== 0) {
+        // Normalize diagonal movement
+        if (dx !== 0 && dy !== 0) {
+          dx *= 0.707;
+          dy *= 0.707;
+        }
+
+        gameState.player.x += dx * gameState.player.speed;
+        gameState.player.y += dy * gameState.player.speed;
+
+        // Keep player within bounds
+        gameState.player.x = Math.max(0, Math.min(gameState.gridWidth - 1, gameState.player.x));
+        gameState.player.y = Math.max(0, Math.min(gameState.gridHeight - 1, gameState.player.y));
+
+        gameState.player.isMoving = true;
+
+        // Update direction
+        if (Math.abs(dx) > Math.abs(dy)) {
+          gameState.player.direction = dx > 0 ? 'right' : 'left';
+        } else if (dy !== 0) {
+          gameState.player.direction = dy > 0 ? 'down' : 'up';
+        }
+
+        // Update animation
+        gameState.player.animationTimer += gameState.deltaTime;
+        if (gameState.player.animationTimer > 100) {
+          gameState.player.animationTimer = 0;
+          gameState.player.animationFrame = (gameState.player.animationFrame + 1) % 4;
+        }
+      } else {
+        gameState.player.isMoving = false;
+        gameState.player.animationFrame = 0;
+      }
+
+      // Update chat bubble timer
+      if (gameState.player.chatTimer > 0) {
+        gameState.player.chatTimer -= gameState.deltaTime;
+        if (gameState.player.chatTimer < 500) {
+          gameState.player.chatOpacity = gameState.player.chatTimer / 500;
+        }
+      }
+
+      // Update other players' chat timers
+      multiplayerState.players.forEach(player => {
+        if (player.chatTimer > 0) {
+          player.chatTimer -= gameState.deltaTime;
+          if (player.chatTimer < 500) {
+            player.chatOpacity = player.chatTimer / 500;
+          }
+        }
+      });
+
+      // Update UI
+      document.getElementById("playerPos").textContent = 
+        `X: ${Math.floor(gameState.player.x)}, Y: ${Math.floor(gameState.player.y)}`;
+      document.getElementById("playerState").textContent = 
+        gameState.player.isMoving ? "Running" : "Idle";
+    }
+
+    // Isometric conversion
+    function toIsometric(x, y) {
+      return {
+        x: (x - y) * (gameState.tileSize / 2),
+        y: (x + y) * (gameState.tileSize / 4)
+      };
+    }
+
+    // === DRAWING FUNCTIONS ===
+    function drawTile(x, y, type) {
+      const iso = toIsometric(x, y);
+      const screenX = iso.x + canvas.width / 2 + gameState.cameraX;
+      const screenY = iso.y + canvas.height / 2 + gameState.cameraY;
+      
+      const sprite = images[type || "grass"];
+      if (sprite && sprite.complete) {
+        ctx.drawImage(sprite, 
+          screenX - gameState.tileSize / 2, 
+          screenY - gameState.tileSize / 2, 
+          gameState.tileSize, 
+          gameState.tileSize);
+      }
+    }
+
+    function drawPlayer(player, nickname, isLocal = false) {
+      const iso = toIsometric(player.x, player.y);
+      const screenX = iso.x + canvas.width / 2 + gameState.cameraX;
+      const screenY = iso.y + canvas.height / 2 + gameState.cameraY;
+      
+      // Draw shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.beginPath();
+      ctx.ellipse(screenX, screenY + 10, 20, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Animate bounce when moving
+      let bounceY = 0;
+      if (player.isMoving) {
+        bounceY = Math.sin(player.animationFrame * Math.PI / 2) * 5;
+      }
+
+      // Choose sprite based on state
+      const spriteName = player.isMoving ? 'run' : 'idle';
+      const sprite = images[spriteName];
+      
+      if (sprite && sprite.complete && sprite.width > 0) {
+        // Assuming sprites are sprite sheets with multiple frames
+        const frameWidth = sprite.width / 4; // Assuming 4 frames
+        const frameHeight = sprite.height;
+        const frame = player.animationFrame;
+        
+        // Draw character sprite (larger size)
+        const drawWidth = frameWidth * 1.5;
+        const drawHeight = frameHeight * 1.5;
+        
+        ctx.drawImage(
+          sprite,
+          frame * frameWidth, 0, // Source position
+          frameWidth, frameHeight, // Source size
+          screenX - drawWidth/2, screenY - drawHeight + 15 - bounceY, // Destination position
+          drawWidth, drawHeight // Destination size (larger)
+        );
+      } else {
+        // Fallback: Draw colored diamond if sprites not loaded
+        ctx.fillStyle = player.color || '#6b9fff';
+        ctx.strokeStyle = isLocal ? '#ffffff' : '#000000';
+        ctx.lineWidth = isLocal ? 3 : 2;
+        
+        ctx.beginPath();
+        ctx.moveTo(screenX, screenY - 40 - bounceY);
+        ctx.lineTo(screenX + 25, screenY - 20 - bounceY);
+        ctx.lineTo(screenX, screenY - bounceY);
+        ctx.lineTo(screenX - 25, screenY - 20 - bounceY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Draw nickname
+      ctx.fillStyle = isLocal ? '#ffffff' : '#ffff00';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.font = 'bold 14px BoldPixels, Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.strokeText(nickname, screenX, screenY - 45 - bounceY);
+      ctx.fillText(nickname, screenX, screenY - 45 - bounceY);
+
+      // Draw chat bubble if active
+      if (player.chatTimer > 0 && player.chatMessage) {
+        drawChatBubble(screenX, screenY - 60 - bounceY, player.chatMessage, player.chatOpacity || 1);
+      }
+    }
+
+    function drawChatBubble(x, y, message, opacity = 1) {
+      ctx.save();
+      ctx.globalAlpha = opacity;
+      
+      ctx.font = '14px BoldPixels, Arial';
+      const metrics = ctx.measureText(message);
+      const padding = 10;
+      const bubbleWidth = metrics.width + padding * 2;
+      const bubbleHeight = 30;
+      
+      // Draw bubble background
+      ctx.fillStyle = 'white';
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      
+      // Bubble body
+      ctx.beginPath();
+      ctx.roundRect(x - bubbleWidth/2, y - bubbleHeight, bubbleWidth, bubbleHeight, 8);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Bubble tail
+      ctx.beginPath();
+      ctx.moveTo(x - 5, y);
+      ctx.lineTo(x + 5, y);
+      ctx.lineTo(x, y + 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Draw text
+      ctx.fillStyle = '#333';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(message, x, y - bubbleHeight/2);
+      
+      ctx.restore();
+    }
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw tiles with grass
+      for (let y = 0; y < gameState.gridHeight; y++) {
+        for (let x = 0; x < gameState.gridWidth; x++) {
+          drawTile(x, y, "grass");
+        }
+      }
+
+      // Draw some decorative elements
+      drawTile(20, 20, "tree");
+      drawTile(30, 25, "house");
+      drawTile(15, 30, "tree");
+      drawTile(35, 15, "shop");
+      drawTile(10, 10, "tree");
+      drawTile(40, 40, "office");
+
+      // Draw other players first
+      multiplayerState.players.forEach((player, id) => {
+        drawPlayer(player, player.nickname, false);
+      });
+
+      // Draw local player last (on top)
+      drawPlayer(gameState.player, multiplayerState.nickname || 'Player', true);
+    }
+
+    // Mouse handlers
+    function handleMouseDown(e) {
+      if (e.button === 2) {
+        gameState.isDragging = true;
+        gameState.lastMouseX = e.clientX;
+        gameState.lastMouseY = e.clientY;
+      }
+    }
+
+    function handleMouseMove(e) {
+      if (gameState.isDragging) {
+        const dx = e.clientX - gameState.lastMouseX;
+        const dy = e.clientY - gameState.lastMouseY;
+        gameState.cameraX += dx;
+        gameState.cameraY += dy;
+      }
+      gameState.lastMouseX = e.clientX;
+      gameState.lastMouseY = e.clientY;
+    }
+
+    function handleMouseUp() {
+      gameState.isDragging = false;
+    }
+
+    function handleWheel(e) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      gameState.tileSize = Math.max(32, Math.min(128, gameState.tileSize * delta));
+    }
+
+    // Game loop
+    function gameLoop(currentTime) {
+      gameState.deltaTime = currentTime - gameState.lastTime;
+      gameState.lastTime = currentTime;
+      
+      updatePlayer();
+      drawGrid();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Handle page visibility changes to maintain connections
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && multiplayerState.peer && multiplayerState.peer.disconnected) {
+        console.log('Page visible, reconnecting peer...');
+        multiplayerState.peer.reconnect();
+      }
+    });
+
+    // Handle window beforeunload to cleanup connections
+    window.addEventListener('beforeunload', () => {
+      if (multiplayerState.peer) {
+        multiplayerState.peer.destroy();
+      }
+    });
+  </script>
+</body>
+</html>
